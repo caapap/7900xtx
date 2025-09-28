@@ -1,121 +1,219 @@
-# Documentation for the 7900XTX
-aka Navi31 aka gfx1100 aka Plum Bonito aka amd744c
+# AMD Radeon RX 7900 XTX (Navi31) Documentation & Tools
 
-- [PSP](/docs/PSP.md) = Platform Security Processor (ARM)
+**GPU Codename**: Navi31 / gfx1100 / Plum Bonito / amd744c  
+**Architecture**: RDNA 3 (RDNA3)  
+**Target**: Deep technical documentation and reverse engineering tools for AMD's flagship RDNA3 GPU
+
+## Overview
+
+This repository contains comprehensive documentation, analysis tools, and reverse engineering resources for the AMD Radeon RX 7900 XTX GPU. It focuses on understanding the internal architecture, firmware analysis, and low-level programming interfaces of this high-performance graphics card.
+
+## What's Inside
+
+- **Firmware Analysis**: Tools and documentation for analyzing AMD GPU firmware binaries
+- **Hardware Documentation**: Detailed technical documentation of GPU components and registers
+- **Driver Research**: Low-level driver interface exploration and kernel debugging
+- **Architecture Diagrams**: Visual representations of GPU internal structure
+- **Testing Tools**: Python scripts for GPU testing and kernel launching
+
+## GPU Architecture Components
+
+### Core Processing Units
+- **[PSP](/docs/PSP.md)** = Platform Security Processor (ARM)
   - SOS = Secure Operating System (psp_13_0_0_sos.bin)
   - TA = Trusted Application (psp_13_0_0_ta.bin)
   - KDB = Key DataBase
   - TMR = Trusted Memory Region
-- SMU = System Management Unit (smuio1306) (amdgpu/smu_13_0_0.bin) (RS64?)
-- GC = Graphics and Compute (gfx1100)
-  - [CP](/docs/CP.md) (Command Processor) = an umbrella term for the PFP,ME,MEC,MES
+
+- **SMU** = System Management Unit (smuio1306) (amdgpu/smu_13_0_0.bin) (RS64?)
+
+- **GC** = Graphics and Compute (gfx1100)
+  - **[CP](/docs/CP.md)** (Command Processor) = umbrella term for PFP,ME,MEC,MES
   - Drawing Engine (idle during compute)
     - PFP = Pre-Fetch Parser (gc_11_0_0_pfp.bin)
     - ME = Micro Engine (gc_11_0_0_me.bin)
   - RLC = RunList Controller (gc_11_0_0_rlc.bin) (F32)
-  - [MEC](/docs/MEC.md) = Micro Engine Compute (gc_11_0_0_mec.bin) (RS64)
-  - [MES](/docs/MES.md) = Micro Engine Scheduler (gc_11_0_0_mes1.bin) (gc_11_0_0_mes_2.bin) (RS64)
+  - **[MEC](/docs/MEC.md)** = Micro Engine Compute (gc_11_0_0_mec.bin) (RS64)
+  - **[MES](/docs/MES.md)** = Micro Engine Scheduler (gc_11_0_0_mes1.bin) (gc_11_0_0_mes_2.bin) (RS64)
   - IMU = Integrated Memory Controller Utility (gc_11_0_0_imu.bin)
-- DCN = Display Core Next (dcn320) (amdgpu/dcn_3_2_0_dmcub.bin)
-- VCN = Video Core Next (encoder/decoder) (vcn400) (vcn_4_0_0.bin)
-- [SDMA](/docs/SDMA.md) = System DMA (lsdma600) (sdma_6_0_0.bin) (F32)
 
-More info on each piece:
-https://mjmwired.net/kernel/Documentation/gpu/amdgpu/driver-core.rst
+### Specialized Units
+- **DCN** = Display Core Next (dcn320) (amdgpu/dcn_3_2_0_dmcub.bin)
+- **VCN** = Video Core Next (encoder/decoder) (vcn400) (vcn_4_0_0.bin)
+- **[SDMA](/docs/SDMA.md)** = System DMA (lsdma600) (sdma_6_0_0.bin) (F32)
 
-RS64 = RISCV/RV64I + a few custom instructions! Load (at least MEC) with offset 0x200
+**Instruction Set Architecture**: RS64 = RISCV/RV64I + custom instructions! Load (at least MEC) with offset 0x200
 
-## Documenting Flows
+## Project Structure
 
-- [Launching a kernel](/docs/launching.md)
-- Device/Firmware bringup
+```
+├── docs/                    # Technical documentation
+│   ├── CP.md               # Command Processor details
+│   ├── MEC.md              # Micro Engine Compute
+│   ├── MES.md              # Micro Engine Scheduler
+│   ├── PSP.md              # Platform Security Processor
+│   ├── SDMA.md             # System DMA
+│   ├── launching.md        # Kernel launching process
+│   └── arch1.jpg           # Architecture diagram
+├── driver/                  # Driver research and setup
+│   ├── setup_process.md    # Driver initialization process
+│   ├── smu.md              # System Management Unit
+│   └── glossary.md         # Technical terms glossary
+├── fwinfo/                  # Firmware analysis tools
+│   ├── fwinfo.py           # Firmware information extractor
+│   ├── jumptable.py        # Jump table analysis
+│   └── rosetta.py          # Binary analysis tools
+├── crash/                   # GPU crash analysis tools
+│   ├── driver.py           # Driver interface testing
+│   └── kfd.py              # Kernel Fusion Driver interface
+├── mec/                     # MEC-specific tools
+│   ├── cmdmap.py           # Command mapping utilities
+│   └── make_ghidra_script.py # Ghidra analysis scripts
+└── test.py                  # GPU testing and kernel launching
+```
 
-## Architechture Diagram
+## Key Documentation
 
-![](/docs/arch1.jpg)
+- **[Launching a kernel](/docs/launching.md)** - Complete kernel dispatch process
+- **[Device/Firmware bringup](/driver/setup_process.md)** - Initialization sequence
+- **[Architecture Diagram](/docs/arch1.jpg)** - Visual GPU structure
 
-- 1x 5nm GCD (graphics compute die)
-- 6x 6nm MCD (memory cache die)
-- More about the [Compute Unit](/docs/CU.md)
+### Physical Architecture
+- **1x 5nm GCD** (Graphics Compute Die)
+- **6x 6nm MCD** (Memory Cache Die)
+- **[Compute Unit Details](/docs/CU.md)** - Detailed CU architecture
 
-## Dumping registers
+## Quick Start
 
+### Prerequisites
+- AMD Radeon RX 7900 XTX GPU
+- Linux system with AMDGPU driver
+- Python 3.x with required dependencies
+- `umr` (AMD GPU register dumper) - [Installation guide](https://github.com/umr-io/umr)
+
+### Basic Usage
+
+#### 1. Register Analysis
 ```bash
-# list regs with bits
+# List registers with bit descriptions
 sudo umr -lr amd744c.gfx1100 -O bits
 
-# dump regs
+# Dump all registers
 sudo umr -s amd744c.gfx1100
+
+# Monitor GPU activity in real-time
+sudo umr --top
 ```
 
-## umr --top
-
-```
-GRBM (Graphics Register Backbone Manager) Bits:
-                 TA =>    95.0 % |                GDS =>     0.0 %
-                 SX =>     0.0 % |                SPI =>    96.0 %
-                BCI =>     0.0 % |                 SC =>     0.0 %
-                 PA =>     0.0 % |                 DB =>     0.0 %
-       CP_COHERENCY =>     0.0 % |                 CP =>    97.0 %
-                 CB =>     0.0 % |                GUI =>    97.0 %
-                 GE =>     0.0 % |                RLC =>    96.0 %
-                CPF =>    97.0 % |                CPC =>    97.0 %
-                CPG =>     0.0 % |
-
-TA (Texture Addresser) Bits:
-                 IN =>    33.0 % |                 FG =>     0.0 %
-                 LA =>     0.0 % |                 FL =>     0.0 %
-                 TA =>     0.0 % |                 FA =>    44.0 %
-                 AL =>    70.0 % |
-```
-
-## Installing AMDGPU
-
+#### 2. Firmware Analysis
 ```bash
-sudo apt-get install linux-generic-hwe-22.04
-# add user to render+video groups
+cd fwinfo/
+python3 fwinfo.py                    # Analyze firmware binaries
+python3 jumptable.py                 # Extract jump tables
+python3 rosetta.py                   # Binary analysis
 ```
 
-## Rebuilding amdgpu kernel module
-
-https://imil.net/blog/posts/2022/build-a-single-in-tree-linux-kernel-module-debian--clones/
-
+#### 3. GPU Testing
 ```bash
-sudo rmmod amdgpu && make -C . M=drivers/gpu/drm/amd/amdgpu && sudo insmod drivers/gpu/drm/amd/amdgpu/amdgpu.ko
-# gpu_recovery doesn't seem to work
-#sudo modprobe amdgpu gpu_recovery=0
+python3 test.py                      # Basic GPU functionality test
+cd crash/
+python3 driver.py                    # Driver interface testing
 ```
 
-Enable debug prints in dmesg
-
+#### 4. Kernel Launching
 ```bash
+# Follow the detailed guide in docs/launching.md
+# This covers AQL packet creation and kernel dispatch
+```
+
+## Advanced Tools & Debugging
+
+### Real-time GPU Monitoring
+```bash
+# Monitor GPU utilization and performance
+sudo umr --top
+
+# Example output showing GPU activity:
+# GRBM (Graphics Register Backbone Manager) Bits:
+#                  TA =>    95.0 % |                GDS =>     0.0 %
+#                  SX =>     0.0 % |                SPI =>    96.0 %
+#                 BCI =>     0.0 % |                 SC =>     0.0 %
+#                  PA =>     0.0 % |                 DB =>     0.0 %
+#        CP_COHERENCY =>     0.0 % |                 CP =>    97.0 %
+#                  CB =>     0.0 % |                GUI =>    97.0 %
+#                  GE =>     0.0 % |                RLC =>    96.0 %
+#                 CPF =>    97.0 % |                CPC =>    97.0 %
+#                 CPG =>     0.0 % |
+```
+
+### Debugging Tools
+```bash
+# Enable debug prints in dmesg
 sudo su -c "echo 'file drivers/gpu/drm/amd/* +p' > /sys/kernel/debug/dynamic_debug/control"
-echo 0x19F | sudo tee /sys/module/drm/parameters/debug # Enable verbose DRM logging
-HSAKMT_DEBUG_LEVEL=7  # user space debugging
+echo 0x19F | sudo tee /sys/module/drm/parameters/debug  # Enable verbose DRM logging
+HSAKMT_DEBUG_LEVEL=7  # User space debugging
 ```
 
-## Links
+## Installation & Setup
 
-- https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf
-- https://lists.freedesktop.org/archives/amd-gfx/2022-April/078410.html
-- https://docs.kernel.org/gpu/amdgpu/driver-core.html
-- https://wiki.gentoo.org/wiki/AMDGPU
-- https://mjmwired.net/kernel/Documentation/gpu/amdgpu/driver-core.rst
-- https://www.kernel.org/doc/html/v6.8/gpu/amdgpu/amdgpu-glossary.html
-- https://github.com/amezin/amdgpu-pptable
-- https://themaister.net/blog/2023/08/20/hardcore-vulkan-debugging-digging-deep-on-linux-amdgpu/
-- https://martty.github.io/posts/radbg_part_3/
-- https://martty.github.io/posts/radbg_part_4/
-- https://www.phoronix.com/news/AMDGPU-LSDMA-Light-SDMA
-- https://gpuopen.com/presentations/2023/RDNA3_Beyond-the-current-gen-v4.pdf
-- https://bu-icsg.github.io/publications/2022/navisim_pact_2022.pdf
-- https://gpuopen.com/rdna/
-- https://github.com/fail0verflow/radeon-tools
-- https://github.com/gnif/vendor-reset
-- https://sourceware.org/gdb/current/onlinedocs/gdb.html/AMD-GPU.html
-- https://www.x.org/docs/AMD/old/R5xx_Acceleration_v1.2.pdf
-- https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/programmer-references/si_programming_guide_v2.pdf
-- https://old.gem5.org/wiki/images/1/19/AMD_gem5_APU_simulator_isca_2018_gem5_wiki.pdf
+### AMDGPU Driver Installation
+```bash
+# Install latest kernel with AMDGPU support
+sudo apt-get install linux-generic-hwe-22.04
+
+# Add user to render and video groups
+sudo usermod -a -G render,video $USER
+```
+
+### Rebuilding AMDGPU Kernel Module
+For development and debugging, you may need to rebuild the AMDGPU module:
+
+```bash
+# Remove current module
+sudo rmmod amdgpu
+
+# Build and install new module
+make -C . M=drivers/gpu/drm/amd/amdgpu
+sudo insmod drivers/gpu/drm/amd/amdgpu/amdgpu.ko
+
+# Note: GPU recovery may not work in all configurations
+# sudo modprobe amdgpu gpu_recovery=0
+```
+
+**Reference**: [Building single in-tree Linux kernel modules](https://imil.net/blog/posts/2022/build-a-single-in-tree-linux-kernel-module-debian--clones/)
+
+## Resources & References
+
+### Official AMD Documentation
+- [RDNA3 Shader Instruction Set Architecture](https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf)
+- [RDNA Architecture Overview](https://gpuopen.com/rdna/)
+- [RDNA3 Beyond Current Gen](https://gpuopen.com/presentations/2023/RDNA3_Beyond-the-current-gen-v4.pdf)
+
+### Linux Kernel Documentation
+- [AMDGPU Driver Core](https://docs.kernel.org/gpu/amdgpu/driver-core.html)
+- [AMDGPU Glossary](https://www.kernel.org/doc/html/v6.8/gpu/amdgpu/amdgpu-glossary.html)
+- [AMDGPU Driver Documentation](https://mjmwired.net/kernel/Documentation/gpu/amdgpu/driver-core.rst)
+
+### Tools & Utilities
+- [UMR - AMD GPU Register Dumper](https://github.com/umr-io/umr)
+- [Radeon Tools](https://github.com/fail0verflow/radeon-tools)
+- [Vendor Reset](https://github.com/gnif/vendor-reset)
+- [AMDGPU PPTABLE](https://github.com/amezin/amdgpu-pptable)
+
+### Debugging & Analysis
+- [Hardcore Vulkan Debugging on Linux AMDGPU](https://themaister.net/blog/2023/08/20/hardcore-vulkan-debugging-digging-deep-on-linux-amdgpu/)
+- [RADBG Part 3](https://martty.github.io/posts/radbg_part_3/)
+- [RADBG Part 4](https://martty.github.io/posts/radbg_part_4/)
+- [GDB AMD GPU Support](https://sourceware.org/gdb/current/onlinedocs/gdb.html/AMD-GPU.html)
+
+### Research Papers
+- [Navisim: A GPU Simulator for RDNA3](https://bu-icsg.github.io/publications/2022/navisim_pact_2022.pdf)
+- [AMD gem5 APU Simulator](https://old.gem5.org/wiki/images/1/19/AMD_gem5_APU_simulator_isca_2018_gem5_wiki.pdf)
+
+### Community Resources
+- [AMD Graphics Mailing List](https://lists.freedesktop.org/archives/amd-gfx/)
+- [Gentoo AMDGPU Wiki](https://wiki.gentoo.org/wiki/AMDGPU)
+- [Phoronix AMDGPU News](https://www.phoronix.com/news/AMDGPU-LSDMA-Light-SDMA)
 
 ## More Acronyms
 
@@ -142,45 +240,55 @@ HSAKMT_DEBUG_LEVEL=7  # user space debugging
 - TCC: Texture Cache per Channel (shared L2)
 - CWSR: Compute Wave Store and Resume [code](https://lists.freedesktop.org/archives/amd-gfx/2017-November/016069.html)
 
-## Listing IP blocks
+## IP Block Listing
 
+To list all available IP blocks on your system:
+
+```bash
+sudo umr -lb
 ```
-kafka@q:/sys/class/drm/card0/device/fw_version$ sudo umr -lb
-[WARNING]: Unknown ASIC [amd744c] should be added to pci.did to get proper name
-        amd744c.df421{5} (4.2.1)
-        amd744c.df421{3} (4.2.1)
-        amd744c.df421{1} (4.2.1)
-        amd744c.df421{6} (4.2.1)
-        amd744c.df421{4} (4.2.1)
-        amd744c.df421{2} (4.2.1)
-        amd744c.df420 (4.2.0)
-        amd744c.mp11300 (13.0.0)
-        amd744c.lsdma600 (6.0.0)
-        amd744c.mmhub300 (3.0.0)
-        amd744c.osssys600 (6.0.0)
-        amd744c.vcn401{1} (4.0.1)
-        amd744c.vcn400 (4.0.0)
-        amd744c.hdp600 (6.0.0)
-        amd744c.smuio1306 (13.0.6)
-        amd744c.nbio430 (4.3.0)
-        amd744c.athub300 (3.0.0)
-        amd744c.dcn320 (3.2.0)
-        amd744c.thm1305{5} (13.0.5)
-        amd744c.thm1305{3} (13.0.5)
-        amd744c.thm1305{1} (13.0.5)
-        amd744c.thm1305{6} (13.0.5)
-        amd744c.thm1305{4} (13.0.5)
-        amd744c.thm1305{2} (13.0.5)
-        amd744c.thm1303 (13.0.3)
-        amd744c.mp01300 (13.0.0)
-        amd744c.umc8100{5} (8.10.0)
-        amd744c.umc8100{3} (8.10.0)
-        amd744c.umc8100{1} (8.10.0)
-        amd744c.umc8100{4} (8.10.0)
-        amd744c.umc8100{2} (8.10.0)
-        amd744c.umc8100{0} (8.10.0)
-        amd744c.gfx1100 (11.0.0)
+
+Example output:
 ```
+amd744c.df421{5} (4.2.1)    # Data Fabric
+amd744c.gfx1100 (11.0.0)    # Graphics and Compute
+amd744c.smuio1306 (13.0.6)  # System Management Unit
+amd744c.vcn400 (4.0.0)      # Video Core Next
+# ... and many more
+```
+
+## Contributing
+
+This repository is focused on technical documentation and reverse engineering of AMD Radeon RX 7900 XTX hardware. Contributions are welcome in the following areas:
+
+- **Documentation improvements**: Better explanations, diagrams, or examples
+- **Tool enhancements**: New analysis tools or improvements to existing ones
+- **Firmware analysis**: New insights into firmware behavior or structure
+- **Driver research**: Low-level driver interface discoveries
+- **Bug fixes**: Corrections to existing tools or documentation
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch for your changes
+3. Make your changes with clear commit messages
+4. Test your changes thoroughly
+5. Submit a pull request with a detailed description
+
+### Code Style
+
+- Use clear, descriptive variable and function names
+- Add comments for complex logic
+- Follow Python PEP 8 style guidelines
+- Include docstrings for functions and classes
+
+## License
+
+This project is for educational and research purposes. Please respect AMD's intellectual property and use responsibly.
+
+## Disclaimer
+
+This repository contains reverse engineering information and tools. Use at your own risk. The authors are not responsible for any damage to hardware or software. Always ensure you have proper backups and understand the risks before proceeding with low-level GPU operations.
 
 ```
 [46444.513680] [drm] amdgpu kernel modesetting enabled.
